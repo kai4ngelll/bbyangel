@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер · Jeremy Scott Gorilla</title>
+    <style>
+        body { font-family: sans-serif; background: #eef2f7; display: flex; justify-content: center; padding: 30px; }
+        .card {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 40px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 1.4rem;
+        }
+        .price { background: #1a2a4a; color: white; padding: 6px 16px; border-radius: 30px; font-size: 0.9rem; }
+        .badge {
+            background: #f0f3f9;
+            border-radius: 40px;
+            padding: 10px 18px;
+            margin: 16px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .route {
+            background: #d9e2ef;
+            border-radius: 30px;
+            padding: 20px 10px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .city { text-align: center; font-weight: 600; font-size: 0.8rem; }
+        .city i { font-size: 1.8rem; display: block; }
+        .track {
+            flex: 1;
+            height: 6px;
+            background: #b0c4de;
+            border-radius: 10px;
+            margin: 0 10px;
+            position: relative;
+        }
+        .fill {
+            height: 100%;
+            width: 0%;
+            background: #1f4f8a;
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+        .marker {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.6rem;
+            left: 0%;
+            transition: left 0.3s;
+        }
+        .info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 18px 0;
+        }
+        .info-item {
+            background: #f4f7fc;
+            border-radius: 30px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .info-item .label { font-size: 0.6rem; color: #3a4d6b; }
+        .info-item .value { font-weight: 700; }
+        .status {
+            background: #0f1f33;
+            color: white;
+            border-radius: 60px;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .footer {
+            margin-top: 16px;
+            font-size: 0.7rem;
+            text-align: center;
+            color: #4a5f7a;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        .console-timer {
+            background: #1e1e1e;
+            color: #a5d6ff;
+            padding: 8px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            margin-top: 12px;
+            text-align: center;
+            font-family: monospace;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<div class="card" id="app">
+    <div class="header">
+        <span><i class="fas fa-shipping-fast"></i> Трекер</span>
+        <span class="price"><i class="fas fa-tag"></i> ¥70 · ₽2800</span>
+    </div>
+    <div class="badge">
+        <span><i class="fas fa-paw"></i> Jeremy Scott Gorilla</span>
+        <span><i class="fas fa-calendar-alt"></i> 15 сент.</span>
+    </div>
+    <div class="route">
+        <div class="city"><i class="fas fa-city"></i>Гуанчжоу<small>Китай</small></div>
+        <div class="track">
+            <div class="fill" id="progressFill" style="width:0%"></div>
+            <div class="marker" id="movingMarker" style="left:0%"><i class="fas fa-truck"></i></div>
+        </div>
+        <div class="city"><i class="fas fa-flag-checkered"></i>Москва<small>Россия</small></div>
+    </div>
+    <div class="info">
+        <div class="info-item"><i class="fas fa-map-pin"></i><div><span class="label">Текущая позиция</span><span class="value" id="currentLocation">Гуанчжоу</span></div></div>
+        <div class="info-item"><i class="fas fa-clock"></i><div><span class="label">МСК время</span><span class="value" id="currentTime">--:--</span></div></div>
+    </div>
+    <div class="status">
+        <span id="statusMessage"><i class="fas fa-circle"></i> В пути</span>
+        <span id="dateBadge"><i class="far fa-calendar"></i> 5 сент.</span>
+    </div>
+    <div class="console-timer" id="timerDisplay">
+        ⏱️ Секунд до 15 сент: <span id="secondsCount">0</span>
+    </div>
+    <div class="footer">
+        <span><i class="fas fa-route"></i> 10 дней в пути</span>
+        <span><i class="fas fa-clock"></i> обновление 2с</span>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---- РЕАЛЬНАЯ ДАТА СЕЙЧАС: 5 СЕНТЯБРЯ 2026, 08:55 МСК ----
+        const START_DATE = new Date(2026, 8, 5, 8, 55, 0);   // 5 сентября 08:55
+        const ARRIVAL_DATE = new Date(2026, 8, 15, 23, 59, 59); // 15 сентября 23:59
+
+        // ---- ТАЙМЕР В СЕКУНДАХ (внутри кода) ----
+        const now = new Date();
+        const mskOffset = 180;
+        const localOffset = now.getTimezoneOffset();
+        const nowMsk = new Date(now.getTime() + (mskOffset + localOffset) * 60000);
+        const secondsToArrival = Math.floor((ARRIVAL_DATE.getTime() - nowMsk.getTime()) / 1000);
+        console.log(`⏱️ СЕКУНД ДО 15 СЕНТЯБРЯ (23:59 МСК): ${secondsToArrival}`);
+        console.log(`📅 Сегодня: ${nowMsk.toLocaleString('ru-RU')}`);
+
+        // ---- ЭТАПЫ (от 5 сентября 08:55 до 15 сентября) ----
+        const STAGES = [
+            { name: 'Гуанчжоу · выезд', status: 'Выехал из Гуанчжоу', progress: 0, hours: 0 },
+            { name: 'Шаогуань · транзит', status: 'Проезжает Шаогуань', progress: 6, hours: 3 },
+            { name: 'Чэньчжоу · транзит', status: 'Проезжает Чэньчжоу', progress: 12, hours: 6 },
+            { name: 'Ухань · транзит', status: 'Проезжает Ухань', progress: 19, hours: 9.5 },
+            { name: 'Сяогань · транзит', status: 'Проезжает Сяогань', progress: 26, hours: 13 },
+            { name: 'Суйчжоу · транзит', status: 'Проезжает Суйчжоу', progress: 33, hours: 16.5 },
+            { name: 'Чунцин · транзит', status: 'Приближается к Чунцину', progress: 42, hours: 21 },
+            { name: 'Чунцин · граница', status: 'Выезд из Чунцина', progress: 51, hours: 26 },
+            { name: 'Граница КНР/Казахстан', status: 'Пересекает границу', progress: 60, hours: 32 },
+            { name: 'Казахстан · транзит', status: 'Пересекает Казахстан', progress: 70, hours: 40 },
+            { name: 'Граница Казахстан/РФ', status: 'Въезд в Россию', progress: 80, hours: 49 },
+            { name: 'Россия · Урал', status: 'Движется через Урал', progress: 88, hours: 58 },
+            { name: 'Московская область', status: 'Въезд в Московскую область', progress: 95, hours: 68 },
+            { name: 'Москва · МКАД', status: 'Прибыл в Москву', progress: 100, hours: 78 },
+        ];
+
+        // ---- DOM ----
+        const progressFill = document.getElementById('progressFill');
+        const movingMarker = document.getElementById('movingMarker');
+        const currentLocation = document.getElementById('currentLocation');
+        const currentTime = document.getElementById('currentTime');
+        const statusMessage = document.getElementById('statusMessage');
+        const dateBadge = document.getElementById('dateBadge');
+        const secondsSpan = document.getElementById('secondsCount');
+
+        function getMoscowNow() {
+            const now = new Date();
+            const mskOffset = 180;
+            const localOffset = now.getTimezoneOffset();
+            return new Date(now.getTime() + (mskOffset + localOffset) * 60000);
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+        }
+
+        function hoursDiff(date1, date2) {
+            return (date1.getTime() - date2.getTime()) / (1000 * 60 * 60);
+        }
+
+        function getCurrentStage(nowMsk) {
+            const hoursFromStart = hoursDiff(nowMsk, START_DATE);
+            if (hoursFromStart < 0) return { stage: STAGES[0], progress: 0 };
+            if (nowMsk >= ARRIVAL_DATE) {
+                return { stage: { name: 'Москва · получен', status: '✅ Доставлен 15 сентября', progress: 105 }, progress: 105 };
+            }
+            let currentStage = STAGES[0];
+            let nextStage = STAGES[1] || null;
+            for (let i = 0; i < STAGES.length; i++) {
+                if (hoursFromStart >= STAGES[i].hours) {
+                    currentStage = STAGES[i];
+                    nextStage = STAGES[i + 1] || null;
+                }
+            }
+            let progress = currentStage.progress;
+            if (nextStage) {
+                const duration = nextStage.hours - currentStage.hours;
+                const elapsed = hoursFromStart - currentStage.hours;
+                const stageProgress = Math.min(1, Math.max(0, elapsed / duration));
+                progress = currentStage.progress + (nextStage.progress - currentStage.progress) * stageProgress;
+            }
+            return { stage: currentStage, progress: Math.min(105, progress) };
+        }
+
+        function updateTracker() {
+            const nowMsk = getMoscowNow();
+            const { stage, progress } = getCurrentStage(nowMsk);
+
+            const percent = Math.min(105, Math.round(progress));
+            progressFill.style.width = Math.min(100, percent) + '%';
+            movingMarker.style.left = Math.min(100, percent) + '%';
+
+            currentLocation.textContent = stage.name;
+            statusMessage.innerHTML = `<i class="fas fa-circle"></i> ${stage.status}`;
+            currentTime.textContent = formatTime(nowMsk);
+            dateBadge.innerHTML = `<i class="far fa-calendar"></i> ${formatDate(nowMsk)}`;
+
+            // ---- СЕКУНДЫ ДО 15 СЕНТЯБРЯ (обновляются каждые 2 секунды) ----
+            const nowTs = nowMsk.getTime();
+            const arrivalTs = ARRIVAL_DATE.getTime();
+            const secondsLeft = Math.max(0, Math.floor((arrivalTs - nowTs) / 1000));
+            secondsSpan.textContent = secondsLeft.toLocaleString('ru-RU');
+
+            if (progress >= 105) {
+                movingMarker.innerHTML = '<i class="fas fa-check-circle" style="color:#27ae60;"></i>';
+            } else {
+                movingMarker.innerHTML = '<i class="fas fa-truck"></i>';
+            }
+        }
+
+        updateTracker();
+        setInterval(updateTracker, 2000);
+
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) updateTracker(); });
+        window.addEventListener('load', updateTracker);
+        window.addEventListener('resize', updateTracker);
+
+        console.log('✅ Таймер внутри кода: секунды до 15 сентября считаются в консоли и на странице.');
+    })();
+</script>
+</body>
+  </html>
